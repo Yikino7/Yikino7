@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>数字信号处理大作业 - 人体跌倒检测与运动状态识别系统</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --muted: #667085;
+      --bg: #f4f7f2;
+      --card: rgba(255, 255, 255, 0.78);
+      --line: rgba(17, 24, 39, 0.12);
+      --blue: #1d4ed8;
+      --cyan: #0891b2;
+      --green: #16845b;
+      --amber: #d97706;
+      --red: #dc2626;
+      --navy: #102033;
+      --shadow: 0 22px 80px rgba(16, 32, 51, 0.16);
+      --radius: 26px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(8, 145, 178, 0.20), transparent 30%),
+        radial-gradient(circle at 92% 6%, rgba(22, 132, 91, 0.18), transparent 30%),
+        radial-gradient(circle at 55% 100%, rgba(217, 119, 6, 0.15), transparent 34%),
+        linear-gradient(135deg, #eef7f5 0%, #f7f3e8 52%, #edf2ff 100%);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      line-height: 1.75;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      opacity: 0.32;
+      background-image:
+        linear-gradient(rgba(16, 32, 51, 0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 32, 51, 0.05) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: linear-gradient(to bottom, black, transparent 82%);
+    }
+
+    .page { width: min(1500px, calc(100% - 28px)); margin: 0 auto; padding: 28px 0 64px; }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 620px;
+      padding: 58px;
+      border: 1px solid var(--line);
+      border-radius: 36px;
+      background:
+        linear-gradient(122deg, rgba(255,255,255,0.94), rgba(238,247,245,0.78)),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220' viewBox='0 0 220 220'%3E%3Cg fill='none' stroke='%23102033' stroke-opacity='.09'%3E%3Cpath d='M24 110H196M110 24V196'/%3E%3Ccircle cx='110' cy='110' r='70'/%3E%3Cpath d='M48 154c28-42 48-22 64-58s40-34 60-26'/%3E%3C/g%3E%3C/svg%3E");
+      box-shadow: var(--shadow);
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -90px;
+      bottom: -95px;
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(29,78,216,0.14), rgba(8,145,178,0.10) 38%, transparent 68%);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 15px;
+      border: 1px solid rgba(29,78,216,0.22);
+      border-radius: 999px;
+      color: var(--blue);
+      background: rgba(255,255,255,0.72);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    .badge::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 6px rgba(22,132,91,0.14); }
+
+    h1, h2, h3 { margin: 0; line-height: 1.18; }
+    h1 { max-width: 960px; margin-top: 34px; font-size: clamp(34px, 6.4vw, 72px); letter-spacing: -0.055em; }
+    .subtitle { max-width: 850px; margin: 24px 0 0; color: var(--muted); font-size: 20px; }
+
+    .hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.08fr 0.92fr; gap: 26px; margin-top: 42px; }
+    .glass {
+      padding: 23px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255,255,255,0.62);
+      backdrop-filter: blur(12px);
+    }
+    .glass strong { display: block; margin-bottom: 8px; color: var(--navy); letter-spacing: 0.04em; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 28px; position: relative; z-index: 1; }
+    .metric { padding: 18px; border: 1px solid var(--line); border-radius: 20px; background: rgba(255,255,255,0.66); }
+    .metric b { display: block; font-size: 29px; color: var(--blue); line-height: 1; }
+    .metric span { color: var(--muted); font-size: 13px; }
+
+    nav {
+      position: sticky;
+      top: 12px;
+      z-index: 20;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      justify-content: center;
+      margin: 24px 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.78);
+      backdrop-filter: blur(14px);
+      box-shadow: 0 14px 44px rgba(16,32,51,0.12);
+    }
+    nav a { padding: 9px 14px; border-radius: 999px; color: var(--navy); text-decoration: none; font-size: 14px; font-weight: 700; }
+    nav a:hover { color: #fff; background: var(--blue); }
+
+    section {
+      margin-top: 28px;
+      padding: 34px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: 0 16px 54px rgba(16,32,51,0.09);
+      backdrop-filter: blur(10px);
+    }
+    .section-title { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+    .section-title em { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto; border-radius: 15px; color: #fff; background: linear-gradient(135deg, var(--blue), var(--cyan)); font-style: normal; font-weight: 800; }
+    .section-title h2 { font-size: clamp(24px, 3vw, 38px); letter-spacing: -0.03em; }
+    .lead { max-width: 960px; color: var(--muted); font-size: 18px; }
+
+    .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .three-col { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+    .card { padding: 22px; border: 1px solid var(--line); border-radius: 22px; background: rgba(255,255,255,0.58); }
+    .card h3 { margin-bottom: 10px; color: var(--navy); font-size: 20px; }
+    .card p { margin: 0; color: var(--muted); }
+
+    .list { display: grid; gap: 12px; padding: 0; margin: 18px 0 0; list-style: none; }
+    .list li { position: relative; padding: 13px 15px 13px 42px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,0.52); }
+    .list li::before { content: ""; position: absolute; left: 18px; top: 23px; width: 9px; height: 9px; border-radius: 50%; background: var(--cyan); }
+
+    .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 20px; }
+    .flow span { position: relative; display: grid; place-items: center; min-height: 76px; padding: 14px; border-radius: 18px; color: #fff; text-align: center; background: linear-gradient(135deg, var(--navy), var(--blue)); box-shadow: 0 12px 28px rgba(29,78,216,0.20); }
+    .flow span:not(:last-child)::after { content: ""; position: absolute; right: -10px; width: 18px; height: 2px; background: var(--amber); }
+
+    table { width: 100%; margin-top: 18px; border-collapse: collapse; overflow: hidden; border-radius: 18px; background: rgba(255,255,255,0.62); }
+    th, td { padding: 14px 16px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    th { color: #fff; background: var(--navy); }
+    tr:last-child td { border-bottom: 0; }
+    code { padding: 2px 6px; border-radius: 7px; color: var(--blue); background: rgba(29,78,216,0.09); font-family: Consolas, "Courier New", monospace; }
+
+    .formula { margin-top: 12px; padding: 16px; border-left: 5px solid var(--cyan); border-radius: 16px; background: rgba(8,145,178,0.10); font-family: Consolas, "Courier New", monospace; white-space: pre-wrap; }
+
+    .lab {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .controls { position: sticky; top: 84px; padding: 12px; border: 1px solid var(--line); border-radius: 20px; background: rgba(255,255,255,0.68); }
+    .control-group { margin-top: 9px; }
+    label { display: block; margin-bottom: 5px; color: var(--navy); font-weight: 800; font-size: 13px; }
+    select, input[type="file"], input[type="range"], input[type="number"], textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255,255,255,0.82);
+      color: var(--ink);
+      font: inherit;
+    }
+    select, input[type="file"], input[type="number"] { padding: 7px 9px; font-size: 13px; }
+    textarea { min-height: 58px; padding: 8px; resize: vertical; font-family: Consolas, "Courier New", monospace; font-size: 11px; line-height: 1.35; }
+    button {
+      width: 100%;
+      margin-top: 8px;
+      padding: 9px 12px;
+      border: 0;
+      border-radius: 15px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 14px 30px rgba(29,78,216,0.22);
+    }
+    button.secondary { color: var(--navy); background: rgba(29,78,216,0.10); box-shadow: none; }
+    button.danger { background: linear-gradient(135deg, var(--red), #991b1b); }
+    button:hover { transform: translateY(-1px); }
+
+    .dashboard { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+    .status-card { padding: 11px 13px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,0.64); }
+    .status-card span { display: block; color: var(--muted); font-size: 12px; }
+    .status-card b { display: block; margin-top: 2px; color: var(--navy); font-size: 20px; line-height: 1.08; }
+    .state-safe b { color: var(--green); }
+    .state-warn b { color: var(--amber); }
+    .state-fall b { color: var(--red); }
+
+    .stage-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 10px;
+      padding: 8px;
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(255,255,255,0.58);
+    }
+    .stage-tab {
+      width: auto;
+      margin: 0;
+      padding: 7px 10px;
+      color: var(--navy);
+      background: rgba(29,78,216,0.08);
+      box-shadow: none;
+      font-size: 13px;
+    }
+    .stage-tab.active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      box-shadow: 0 12px 24px rgba(29,78,216,0.18);
+    }
+    .stage-info {
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      border: 1px solid rgba(8,145,178,0.18);
+      border-radius: 18px;
+      color: #344054;
+      background: rgba(8,145,178,0.09);
+    }
+
+    .chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .chart-card { padding: 10px; border: 1px solid var(--line); border-radius: 18px; background: rgba(255,255,255,0.60); }
+    .chart-card.hidden, .event-log.hidden { display: none; }
+    .chart-card.wide { grid-column: 1 / -1; }
+    .chart-card h3 { margin: 0 0 6px; color: var(--navy); font-size: 14px; }
+    canvas { display: block; width: 100%; height: auto; border-radius: 13px; background: linear-gradient(180deg, #ffffff, #f4f7fb); box-shadow: inset 0 0 0 1px rgba(17,24,39,0.07); }
+
+    .event-log { max-height: 138px; overflow: auto; margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,0.58); }
+    .event { display: grid; grid-template-columns: 70px 1fr auto; gap: 9px; align-items: center; padding: 6px 0; border-bottom: 1px dashed rgba(17,24,39,0.12); font-size: 13px; }
+    .event:last-child { border-bottom: 0; }
+    .pill { display: inline-flex; align-items: center; justify-content: center; padding: 4px 10px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 800; background: var(--blue); }
+    .pill.fall { background: var(--red); }
+    .pill.walk { background: var(--green); }
+    .pill.run { background: var(--amber); }
+    .pill.still { background: var(--muted); }
+
+    .note { margin-top: 8px; padding: 9px 10px; border-radius: 14px; color: #344054; background: rgba(8,145,178,0.10); font-size: 12px; }
+
+    @media (max-width: 960px) {
+      .hero { padding: 34px 24px; min-height: auto; }
+      .hero-grid, .two-col, .three-col, .lab, .chart-grid { grid-template-columns: 1fr; }
+      .metrics, .dashboard { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .flow { grid-template-columns: 1fr; }
+      .flow span::after { display: none; }
+      nav, .controls { position: static; }
+      nav { border-radius: 24px; }
+      .chart-card.wide { grid-column: auto; }
+    }
+    @media (max-width: 560px) {
+      .page { width: min(100% - 20px, 1500px); }
+      section { padding: 24px 18px; }
+      .metrics, .dashboard { grid-template-columns: 1fr; }
+      th, td { padding: 12px 10px; font-size: 14px; }
+      .event { grid-template-columns: 1fr; gap: 5px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <span class="badge">DSP 课程综合设计</span>
+      <h1>基于加速度信号处理的人体跌倒检测与运动状态识别系统</h1>
+      <p class="subtitle">利用手机或可穿戴设备的三轴加速度数据，完成采样、滤波、合加速度计算、FFT 频谱分析、峰值检测、特征提取和规则判决，实现静止、行走、跑步、上下楼梯与跌倒状态识别。</p>
+      <div class="hero-grid">
+        <div class="glass">
+          <strong>选题背景</strong>
+          本课题面向智能养老、运动健康和安全预警等真实场景。人体在行走、跑步、上下楼梯、坐下站起和跌倒时，加速度信号在幅值、能量、主频和冲击峰值上存在明显差异，适合用数字信号处理方法进行分析和识别。
+        </div>
+        <div class="glass">
+          <strong>核心处理链路</strong>
+          三轴加速度采集 → 去噪平滑 → 合加速度计算 → 低通滤波 → 分帧加窗 → FFT 频谱分析 → 特征提取 → 状态识别 → 跌倒告警。
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric"><b>50Hz+</b><span>推荐采样率</span></div>
+        <div class="metric"><b>256-2048</b><span>可选 FFT 点数</span></div>
+        <div class="metric"><b>7类</b><span>运动状态识别</span></div>
+        <div class="metric"><b>≤2s</b><span>跌倒响应时间</span></div>
+      </div>
+    </header>
+
+    <nav aria-label="页面导航">
+      <a href="#background">背景</a>
+      <a href="#goals">目标</a>
+      <a href="#knowledge">知识点</a>
+      <a href="#design">系统方案</a>
+      <a href="#algorithm">算法</a>
+      <a href="#lab">系统演示</a>
+      <a href="#result">指标</a>
+      <a href="#summary">总结</a>
+    </nav>
+
+    <section id="background">
+      <div class="section-title"><em>一</em><h2>选题背景与选题原因</h2></div>
+      <p class="lead">随着智能手机、智能手环和可穿戴设备的普及，人体运动数据采集变得非常方便。跌倒检测具有较高现实价值，尤其适用于老人、独居人群、运动人群和特殊作业场景。该系统以三轴加速度信号为研究对象，通过 DSP 方法提取运动特征并识别异常跌倒事件。</p>
+      <div class="three-col">
+        <div class="card"><h3>生活化程度高</h3><p>手机传感器即可采集数据，可记录静止、行走、跑步、上下楼梯、坐下站起、模拟跌倒等动作。</p></div>
+        <div class="card"><h3>课程覆盖全面</h3><p>覆盖采样定理、数字滤波器、FFT、窗函数、峰值检测、特征提取和分类判决等知识点。</p></div>
+        <div class="card"><h3>结果展示直观</h3><p>三轴波形、合加速度、频谱图、峰值标注、运动时间线和跌倒告警都可以直接可视化。</p></div>
+      </div>
+    </section>
+
+    <section id="goals">
+      <div class="section-title"><em>二</em><h2>项目目标</h2></div>
+      <ul class="list">
+        <li>读取或模拟手机三轴加速度数据，支持 CSV 数据导入。</li>
+        <li>对原始信号进行去噪、归一化、平滑和低通滤波处理。</li>
+        <li>计算三轴合加速度 <code>A = sqrt(ax² + ay² + az²)</code>，构建运动强度信号。</li>
+        <li>对信号进行分帧加窗，提取均值、方差、RMS、峰值、峰峰值、主频和频谱能量。</li>
+        <li>使用 FFT 识别行走、跑步等周期性运动的主频特征。</li>
+        <li>设计基于冲击阈值、跌倒后静止时间和能量变化的跌倒检测规则。</li>
+        <li>实现静止、行走、跑步、上楼梯、下楼梯、坐下站起和跌倒状态识别。</li>
+        <li>开发可视化监测平台，显示波形、频谱、特征参数、状态时间线和跌倒告警。</li>
+      </ul>
+    </section>
+
+    <section id="knowledge">
+      <div class="section-title"><em>三</em><h2>与课程相关知识点</h2></div>
+      <table>
+        <thead><tr><th>课程知识点</th><th>实验应用内容</th></tr></thead>
+        <tbody>
+          <tr><td>采样定理</td><td>加速度传感器以固定采样率对连续人体运动信号进行离散采样，实验推荐采样率不低于 50 Hz。</td></tr>
+          <tr><td>离散时间信号</td><td>将 <code>ax[n]</code>、<code>ay[n]</code>、<code>az[n]</code> 表示为离散序列并进行时域分析。</td></tr>
+          <tr><td>数字滤波器设计</td><td>使用移动平均或低通滤波器去除高频随机噪声，保留人体运动主要低频成分。</td></tr>
+          <tr><td>合加速度计算</td><td>消除手机佩戴方向影响，提高冲击检测和运动强度判断稳定性。</td></tr>
+          <tr><td>窗函数</td><td>支持 Hann、Hamming、Blackman 和矩形窗，可人为切换并对比 FFT 频谱泄漏。</td></tr>
+          <tr><td>DFT/FFT</td><td>计算有限长度运动信号频谱，提取行走和跑步等周期性运动主频。</td></tr>
+          <tr><td>峰值检测</td><td>检测跌倒瞬间产生的冲击峰值，并标注峰值发生时间。</td></tr>
+          <tr><td>特征提取与判决</td><td>提取 RMS、方差、峰峰值、频谱能量、主频和静止时间，完成状态识别。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="design">
+      <div class="section-title"><em>四</em><h2>系统设计方案</h2></div>
+      <p class="lead">系统从数据采集开始，经过信号预处理、滤波、频域分析和特征提取，最终输出运动状态和跌倒告警。</p>
+      <div class="flow">
+        <span>加速度数据采集</span>
+        <span>预处理与合加速度</span>
+        <span>低通滤波与分帧</span>
+        <span>FFT 与特征提取</span>
+        <span>状态识别和告警</span>
+      </div>
+      <div class="two-col" style="margin-top:22px;">
+        <div class="card">
+          <h3>主要功能</h3>
+          <ul class="list">
+            <li>内置多种运动场景模拟数据，也支持 CSV 上传。</li>
+            <li>显示三轴加速度、合加速度、滤波曲线和跌倒峰值。</li>
+            <li>绘制 FFT 频谱图、特征柱状图和状态时间线。</li>
+            <li>输出当前状态、主频、RMS、峰值和告警信息。</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>CSV 数据格式</h3>
+          <p>支持两种格式：<code>time,ax,ay,az</code> 或 <code>ax,ay,az</code>。可从手机传感器 APP 导出后上传，也可以粘贴到文本框中解析。</p>
+          <div class="formula">time,ax,ay,az
+0.00,0.12,0.04,9.72
+0.02,0.18,0.05,9.86</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="algorithm">
+      <div class="section-title"><em>五</em><h2>关键算法设计</h2></div>
+      <div class="two-col">
+        <div class="card"><h3>1. 合加速度</h3><p>将三轴加速度合成为一个方向无关的运动强度信号。</p><div class="formula">A[n] = sqrt(ax[n]^2 + ay[n]^2 + az[n]^2)</div></div>
+        <div class="card"><h3>2. 低通滤波</h3><p>人体日常运动主要集中在低频段，使用移动平均/低通滤波抑制高频噪声。</p><div class="formula">y[n] = (x[n] + x[n-1] + ... + x[n-M+1]) / M</div></div>
+        <div class="card"><h3>3. FFT 主频</h3><p>对加窗后的分析窗口进行 FFT，提取能量最大的有效频率作为主频。</p><div class="formula">f_main = argmax |FFT(A_window)|, 0.2Hz ≤ f ≤ 8Hz</div></div>
+        <div class="card"><h3>4. 跌倒判决</h3><p>同时满足冲击峰值、跌倒后静止和短时能量变化条件时判定为跌倒。</p><div class="formula">peak(A) > T_impact 且 after_RMS < T_still 且 still_time ≥ 0.8s</div></div>
+      </div>
+    </section>
+
+    <section id="lab">
+      <div class="section-title"><em>六</em><h2>可视化监测平台与功能演示</h2></div>
+      <p class="lead">下方是完整的浏览器端演示系统：可以生成模拟运动数据、上传 CSV、粘贴数据、调节采样率、FFT 点数、加窗类型和检测阈值，并实时绘制波形、频谱、特征和状态识别结果。</p>
+      <div class="lab">
+        <aside class="controls">
+          <div class="control-group">
+            <label for="scenario">实验数据场景</label>
+            <select id="scenario">
+              <option value="mixed">综合场景：静止-行走-跑步-上楼-跌倒</option>
+              <option value="still">静止状态</option>
+              <option value="walk">正常行走</option>
+              <option value="run">跑步状态</option>
+              <option value="upstairs">上楼梯</option>
+              <option value="downstairs">下楼梯</option>
+              <option value="sitstand">坐下/站起</option>
+              <option value="fall">模拟跌倒</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="sampleRate">采样率 Hz：<span id="sampleRateVal">50</span></label>
+            <input id="sampleRate" type="range" min="30" max="120" step="5" value="50" />
+          </div>
+          <div class="control-group">
+            <label for="cutoff">低通截止频率 Hz：<span id="cutoffVal">12</span></label>
+            <input id="cutoff" type="range" min="4" max="25" step="1" value="12" />
+          </div>
+          <div class="control-group">
+            <label for="fftSize">FFT 点数</label>
+            <select id="fftSize">
+              <option value="256">256 点：响应快，频率分辨率较低</option>
+              <option value="512" selected>512 点：课程设计推荐</option>
+              <option value="1024">1024 点：频谱更细</option>
+              <option value="2048">2048 点：高分辨率展示</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="windowType">加窗类型</label>
+            <select id="windowType">
+              <option value="hann" selected>Hann 窗：频谱泄漏较小</option>
+              <option value="hamming">Hamming 窗：旁瓣抑制较好</option>
+              <option value="blackman">Blackman 窗：旁瓣更低</option>
+              <option value="rect">矩形窗：不加窗，对比观察泄漏</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label for="impactThreshold">跌倒冲击阈值 m/s²：<span id="impactVal">24</span></label>
+            <input id="impactThreshold" type="range" min="16" max="38" step="1" value="24" />
+          </div>
+          <div class="control-group">
+            <label for="stillThreshold">静止 RMS 阈值：<span id="stillVal">1.10</span></label>
+            <input id="stillThreshold" type="range" min="0.4" max="2.4" step="0.1" value="1.1" />
+          </div>
+          <button id="generateBtn">生成并分析数据</button>
+          <button id="motionBtn" class="secondary">手机实时采集 10 秒</button>
+          <button id="stopMotionBtn" class="secondary">停止采集并分析</button>
+          <button id="downloadCsvBtn" class="secondary">下载当前 CSV 数据</button>
+          <div class="control-group">
+            <label for="csvFile">上传 CSV 数据</label>
+            <input id="csvFile" type="file" accept=".csv,.txt" />
+          </div>
+          <div class="control-group">
+            <label for="csvText">粘贴 CSV 数据</label>
+            <textarea id="csvText" placeholder="time,ax,ay,az 或 ax,ay,az"></textarea>
+          </div>
+          <button id="parseTextBtn" class="secondary">解析粘贴数据</button>
+          <button id="clearBtn" class="danger">清空告警记录</button>
+          <div class="note">说明：演示数据已加入随机噪声和重力分量，能模拟手机放在口袋或腰部时的加速度变化。</div>
+        </aside>
+
+        <div>
+          <div class="dashboard">
+            <div class="status-card" id="stateCard"><span>综合识别结果</span><b id="stateText">等待分析</b></div>
+            <div class="status-card"><span>跌倒告警</span><b id="fallText">未触发</b></div>
+            <div class="status-card"><span>主频</span><b id="freqText">0.00 Hz</b></div>
+            <div class="status-card"><span>峰值合加速度</span><b id="peakText">0.0</b></div>
+          </div>
+          <div class="stage-tabs" aria-label="演示流程选择">
+            <button class="stage-tab active" data-stage="all">全部流程</button>
+            <button class="stage-tab" data-stage="acquire">1 数据采集</button>
+            <button class="stage-tab" data-stage="preprocess">2 预处理与滤波</button>
+            <button class="stage-tab" data-stage="spectrum">3 FFT 频域分析</button>
+            <button class="stage-tab" data-stage="feature">4 特征提取</button>
+            <button class="stage-tab" data-stage="decision">5 状态识别与告警</button>
+          </div>
+          <div class="stage-info" id="stageInfo">当前展示全部流程：从三轴数据采集、合加速度滤波、FFT 频谱分析，到特征提取、状态识别和跌倒告警。</div>
+          <div class="chart-grid">
+            <div class="chart-card wide" data-stage-panel="acquire"><h3>1 数据采集：三轴加速度原始波形</h3><canvas id="axisCanvas" width="1500" height="260"></canvas></div>
+            <div class="chart-card" data-stage-panel="acquire"><h3>1 数据采集：ax-ay 轨迹投影</h3><canvas id="scatterCanvas" width="760" height="250"></canvas></div>
+            <div class="chart-card wide" data-stage-panel="preprocess"><h3>2 预处理与滤波：合加速度、低通滤波与峰值标注</h3><canvas id="magCanvas" width="1500" height="260"></canvas></div>
+            <div class="chart-card" data-stage-panel="preprocess"><h3>2 预处理与滤波：去趋势动态分量</h3><canvas id="dynamicCanvas" width="760" height="250"></canvas></div>
+            <div class="chart-card" data-stage-panel="preprocess"><h3>2 预处理与滤波：低通滤波器响应示意</h3><canvas id="filterCanvas" width="760" height="250"></canvas></div>
+            <div class="chart-card" data-stage-panel="spectrum"><h3>3 FFT 频域分析：主频与频率分布</h3><canvas id="fftCanvas" width="760" height="250"></canvas></div>
+            <div class="chart-card" data-stage-panel="spectrum"><h3>3 FFT 频域分析：当前窗函数形状</h3><canvas id="windowCanvas" width="760" height="250"></canvas></div>
+            <div class="chart-card wide" data-stage-panel="spectrum"><h3>3 FFT 频域分析：STFT 时频热力图</h3><canvas id="spectrogramCanvas" width="1500" height="240"></canvas></div>
+            <div class="chart-card" data-stage-panel="feature"><h3>4 特征提取：RMS、方差、峰值、能量等参数</h3><canvas id="featureCanvas" width="760" height="250"></canvas></div>
+            <div class="chart-card" data-stage-panel="feature"><h3>4 特征提取：短时 RMS 与峰值趋势</h3><canvas id="featureTrendCanvas" width="760" height="250"></canvas></div>
+            <div class="chart-card wide" data-stage-panel="decision"><h3>5 状态识别：运动状态时间线</h3><canvas id="timelineCanvas" width="1500" height="190"></canvas></div>
+            <div class="chart-card wide" data-stage-panel="decision"><h3>5 状态识别：真实标签与识别结果对比</h3><canvas id="compareCanvas" width="1500" height="210"></canvas></div>
+            <div class="chart-card" data-stage-panel="decision"><h3>5 状态识别：状态占比统计</h3><canvas id="stateDistCanvas" width="760" height="250"></canvas></div>
+          </div>
+          <div class="event-log" id="eventLog" data-stage-panel="decision"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="result">
+      <div class="section-title"><em>七</em><h2>预期指标与实验结果</h2></div>
+      <table>
+        <thead><tr><th>指标项目</th><th>预期目标</th></tr></thead>
+        <tbody>
+          <tr><td>加速度采样率</td><td>≥ 50 Hz，页面演示支持 30-120 Hz 可调。</td></tr>
+          <tr><td>FFT 分析点数</td><td>≥ 512 点，页面支持 256、512、1024、2048 点人为选择，并自动补零。</td></tr>
+          <tr><td>加窗类型</td><td>支持 Hann 窗、Hamming 窗、Blackman 窗和矩形窗，便于对比频谱泄漏现象。</td></tr>
+          <tr><td>分析窗口长度</td><td>2 s 至 5 s，用于短时特征提取和状态识别。</td></tr>
+          <tr><td>可识别运动状态</td><td>不少于 5 种：静止、行走、跑步、上楼梯、下楼梯、坐下站起、跌倒。</td></tr>
+          <tr><td>跌倒检测准确率</td><td>目标 ≥ 85%，通过冲击峰值和跌倒后静止约束降低误报。</td></tr>
+          <tr><td>响应时间</td><td>目标 ≤ 2 s，检测到冲击后继续检查后续静止状态。</td></tr>
+          <tr><td>可视化功能</td><td>具备三轴波形、轨迹投影、合加速度、滤波响应、FFT、窗函数、STFT、特征趋势、状态占比、时间线和告警日志。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="summary">
+      <div class="section-title"><em>八</em><h2>总结与创新点</h2></div>
+      <p class="lead">本系统将 DSP 技术应用于人体安全监测场景，使用普通手机传感器即可完成数据采集和实验验证。项目完整体现了从采样、预处理、滤波、频谱分析到特征提取和状态判决的数字信号处理流程，同时通过可视化平台直观展示算法效果，适合作为数字信号处理课程期末大作业和答辩展示。</p>
+      <div class="three-col">
+        <div class="card"><h3>实用性</h3><p>面向跌倒检测、智能养老、运动监测和可穿戴安全提醒等真实需求。</p></div>
+        <div class="card"><h3>完整性</h3><p>同时实现数据生成、CSV 导入、滤波、FFT、特征提取、状态识别和告警日志。</p></div>
+        <div class="card"><h3>扩展性</h3><p>后续可加入陀螺仪姿态角、机器学习分类器、云端历史统计和移动端部署。</p></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const el = id => document.getElementById(id);
+    const canvases = {
+      axis: el('axisCanvas'),
+      scatter: el('scatterCanvas'),
+      mag: el('magCanvas'),
+      dynamic: el('dynamicCanvas'),
+      filter: el('filterCanvas'),
+      fft: el('fftCanvas'),
+      window: el('windowCanvas'),
+      spectrogram: el('spectrogramCanvas'),
+      feature: el('featureCanvas'),
+      featureTrend: el('featureTrendCanvas'),
+      timeline: el('timelineCanvas'),
+      compare: el('compareCanvas'),
+      stateDist: el('stateDistCanvas')
+    };
+    const ctx = Object.fromEntries(Object.entries(canvases).map(([k, c]) => [k, c.getContext('2d')])) ;
+    let currentData = null;
+    let currentResult = null;
+    let logItems = [];
+    let motionBuffer = null;
+    let motionStart = 0;
+    let motionHandler = null;
+    let motionTimer = null;
+    let currentStage = 'all';
+
+    const stateMeta = {
+      still: { name: '静止', color: '#667085' },
+      walk: { name: '行走', color: '#16845b' },
+      run: { name: '跑步', color: '#d97706' },
+      upstairs: { name: '上楼梯', color: '#0891b2' },
+      downstairs: { name: '下楼梯', color: '#1d4ed8' },
+      sitstand: { name: '坐下/站起', color: '#7c3aed' },
+      fall: { name: '跌倒', color: '#dc2626' },
+      unknown: { name: '未知', color: '#475467' }
+    };
+
+    const stageDescriptions = {
+      all: '当前展示全部流程：从三轴数据采集、轨迹投影、合加速度滤波、FFT/STFT 频谱分析，到特征趋势、状态识别和跌倒告警。',
+      acquire: '当前展示第 1 部分：数据采集。通过三轴原始波形和 ax-ay 轨迹投影，理解传感器采样得到的离散时间序列与身体运动方向变化。',
+      preprocess: '当前展示第 2 部分：预处理与滤波。通过合加速度、去趋势动态分量和低通滤波器响应，说明如何突出人体运动成分并抑制高频噪声。',
+      spectrum: '当前展示第 3 部分：FFT 频域分析。通过 FFT 主频图、窗函数形状和 STFT 时频热力图，比较主频提取、频率分辨率和频谱泄漏现象。',
+      feature: '当前展示第 4 部分：特征提取。通过整体特征柱状图和短时 RMS/峰值趋势，展示状态识别使用的关键判据。',
+      decision: '当前展示第 5 部分：状态识别与告警。通过运动状态时间线、状态占比统计和告警日志，展示最终判决过程。'
+    };
+
+    function setStage(stage) {
+      currentStage = stage;
+      document.querySelectorAll('.stage-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.stage === stage));
+      document.querySelectorAll('[data-stage-panel]').forEach(panel => {
+        panel.classList.toggle('hidden', stage !== 'all' && panel.dataset.stagePanel !== stage);
+      });
+      el('stageInfo').textContent = stageDescriptions[stage] || stageDescriptions.all;
+    }
+
+    function syncLabels() {
+      el('sampleRateVal').textContent = el('sampleRate').value;
+      el('cutoffVal').textContent = el('cutoff').value;
+      el('impactVal').textContent = el('impactThreshold').value;
+      el('stillVal').textContent = Number(el('stillThreshold').value).toFixed(2);
+    }
+
+    function getFftSize() {
+      return Number(el('fftSize')?.value || 512);
+    }
+
+    function getWindowType() {
+      return el('windowType')?.value || 'hann';
+    }
+
+    function windowName(type = getWindowType()) {
+      return ({ hann: 'Hann 窗', hamming: 'Hamming 窗', blackman: 'Blackman 窗', rect: '矩形窗' })[type] || 'Hann 窗';
+    }
+
+    function randn(scale = 1) {
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v) * scale;
+    }
+
+    function generateSegment(type, seconds, fs, startTime) {
+      const n = Math.floor(seconds * fs);
+      const t = [], ax = [], ay = [], az = [], label = [];
+      const params = {
+        still: { f: 0.1, amp: 0.10, z: 9.80 },
+        walk: { f: 1.75, amp: 1.15, z: 9.80 },
+        run: { f: 3.0, amp: 2.15, z: 9.85 },
+        upstairs: { f: 1.35, amp: 1.65, z: 10.10 },
+        downstairs: { f: 1.45, amp: 1.82, z: 9.55 },
+        sitstand: { f: 0.65, amp: 2.45, z: 9.80 },
+        fall: { f: 0.4, amp: 0.35, z: 9.80 }
+      }[type];
+      for (let i = 0; i < n; i++) {
+        const time = startTime + i / fs;
+        const phase = 2 * Math.PI * params.f * (i / fs);
+        let x = 0.18 * Math.sin(phase * 0.7) + randn(0.08);
+        let y = params.amp * Math.sin(phase) + 0.35 * Math.sin(phase * 2.0) + randn(0.10);
+        let z = params.z + params.amp * 0.55 * Math.cos(phase) + randn(0.11);
+        if (type === 'upstairs') z += 0.45 * Math.sin(phase * 0.5);
+        if (type === 'downstairs') z -= 0.35 * Math.sin(phase * 0.5);
+        if (type === 'sitstand') {
+          const center = seconds * 0.45;
+          const p = Math.exp(-Math.pow((i / fs - center) / 0.34, 2));
+          y += 3.2 * p;
+          z -= 2.3 * p;
+        }
+        if (type === 'fall') {
+          const fallTime = seconds * 0.42;
+          const dt = i / fs - fallTime;
+          const impact = Math.exp(-Math.pow(dt / 0.055, 2));
+          const recovery = i / fs > fallTime + 0.45 ? 1 : 0;
+          x += 4.8 * impact + randn(0.05);
+          y += -7.0 * impact;
+          z += 18.5 * impact;
+          if (recovery) {
+            x = 0.05 + randn(0.05);
+            y = 0.12 + randn(0.05);
+            z = 9.35 + randn(0.06);
+          }
+        }
+        t.push(time); ax.push(x); ay.push(y); az.push(z); label.push(type);
+      }
+      return { t, ax, ay, az, label };
+    }
+
+    function concatSegments(segments) {
+      const data = { t: [], ax: [], ay: [], az: [], label: [], fs: Number(el('sampleRate').value) };
+      for (const s of segments) {
+        data.t.push(...s.t); data.ax.push(...s.ax); data.ay.push(...s.ay); data.az.push(...s.az); data.label.push(...s.label);
+      }
+      return data;
+    }
+
+    function generateData() {
+      const fs = Number(el('sampleRate').value);
+      const scenario = el('scenario').value;
+      let time = 0;
+      const add = (type, sec) => { const s = generateSegment(type, sec, fs, time); time += sec; return s; };
+      if (scenario === 'mixed') return concatSegments([add('still', 4), add('walk', 6), add('run', 5), add('upstairs', 5), add('downstairs', 5), add('sitstand', 4), add('fall', 6)]);
+      return concatSegments([add(scenario, scenario === 'fall' ? 8 : 10)]);
+    }
+
+    function parseCsv(text) {
+      const lines = text.trim().split(/\r?\n/).filter(Boolean);
+      if (!lines.length) throw new Error('CSV 内容为空');
+      const first = lines[0].split(/[，,;\t ]+/).map(x => x.trim().toLowerCase());
+      const hasHeader = first.some(v => Number.isNaN(Number(v)));
+      const rows = hasHeader ? lines.slice(1) : lines;
+      const data = { t: [], ax: [], ay: [], az: [], label: [], fs: Number(el('sampleRate').value) };
+      rows.forEach((line, index) => {
+        const tokens = line.trim().split(/[，,;\t ]+/).filter(Boolean);
+        const nums = tokens.map(Number);
+        if (nums.length >= 4 && nums.slice(0, 4).every(v => !Number.isNaN(v))) {
+          data.t.push(nums[0]); data.ax.push(nums[1]); data.ay.push(nums[2]); data.az.push(nums[3]);
+          data.label.push(tokens[4] && Number.isNaN(Number(tokens[4])) ? tokens[4] : 'unknown');
+        }
+        else if (nums.length >= 3 && nums.slice(0, 3).every(v => !Number.isNaN(v))) {
+          data.t.push(index / data.fs); data.ax.push(nums[0]); data.ay.push(nums[1]); data.az.push(nums[2]);
+          data.label.push(tokens[3] && Number.isNaN(Number(tokens[3])) ? tokens[3] : 'unknown');
+        }
+      });
+      if (data.ax.length < 32) throw new Error('有效数据过少，至少需要 32 行');
+      if (data.t.length > 2) {
+        const dt = (data.t[data.t.length - 1] - data.t[0]) / Math.max(1, data.t.length - 1);
+        if (dt > 0) data.fs = Math.round(1 / dt);
+      }
+      while (data.label.length < data.ax.length) data.label.push('unknown');
+      return data;
+    }
+
+    function magnitude(data) {
+      return data.ax.map((_, i) => Math.sqrt(data.ax[i] * data.ax[i] + data.ay[i] * data.ay[i] + data.az[i] * data.az[i]));
+    }
+
+    function movingAverage(arr, window) {
+      const out = new Array(arr.length);
+      let sum = 0;
+      for (let i = 0; i < arr.length; i++) {
+        sum += arr[i];
+        if (i >= window) sum -= arr[i - window];
+        out[i] = sum / Math.min(i + 1, window);
+      }
+      return out;
+    }
+
+    function lowPass(arr, fs, cutoff) {
+      const win = Math.max(3, Math.round(fs / Math.max(1, cutoff)));
+      return movingAverage(arr, win);
+    }
+
+    function detrend(arr) {
+      const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+      return arr.map(v => v - mean);
+    }
+
+    function windowWeight(n, N, type = getWindowType()) {
+      const denom = Math.max(1, N - 1);
+      if (type === 'rect') return 1;
+      if (type === 'hamming') return 0.54 - 0.46 * Math.cos(2 * Math.PI * n / denom);
+      if (type === 'blackman') return 0.42 - 0.5 * Math.cos(2 * Math.PI * n / denom) + 0.08 * Math.cos(4 * Math.PI * n / denom);
+      return 0.5 - 0.5 * Math.cos(2 * Math.PI * n / denom);
+    }
+
+    function fftRadix2(re, im) {
+      const n = re.length;
+      for (let i = 1, j = 0; i < n; i++) {
+        let bit = n >> 1;
+        for (; j & bit; bit >>= 1) j ^= bit;
+        j ^= bit;
+        if (i < j) { [re[i], re[j]] = [re[j], re[i]]; [im[i], im[j]] = [im[j], im[i]]; }
+      }
+      for (let len = 2; len <= n; len <<= 1) {
+        const ang = -2 * Math.PI / len;
+        const wlenR = Math.cos(ang), wlenI = Math.sin(ang);
+        for (let i = 0; i < n; i += len) {
+          let wr = 1, wi = 0;
+          for (let j = 0; j < len / 2; j++) {
+            const uR = re[i + j], uI = im[i + j];
+            const vR = re[i + j + len / 2] * wr - im[i + j + len / 2] * wi;
+            const vI = re[i + j + len / 2] * wi + im[i + j + len / 2] * wr;
+            re[i + j] = uR + vR; im[i + j] = uI + vI;
+            re[i + j + len / 2] = uR - vR; im[i + j + len / 2] = uI - vI;
+            const nextR = wr * wlenR - wi * wlenI;
+            wi = wr * wlenI + wi * wlenR; wr = nextR;
+          }
+        }
+      }
+    }
+
+    function computeSpectrum(signal, fs, fftSize = getFftSize(), winType = getWindowType()) {
+      const N = fftSize;
+      const start = Math.max(0, signal.length - Math.min(signal.length, N));
+      const segment = detrend(signal.slice(start));
+      const re = new Array(N).fill(0), im = new Array(N).fill(0);
+      for (let i = 0; i < segment.length && i < N; i++) re[i] = segment[i] * windowWeight(i, segment.length, winType);
+      fftRadix2(re, im);
+      const freq = [], mag = [];
+      let maxMag = -Infinity, dom = 0;
+      for (let i = 1; i < N / 2; i++) {
+        const f = i * fs / N;
+        const m = Math.sqrt(re[i] * re[i] + im[i] * im[i]);
+        freq.push(f); mag.push(m);
+        if (f >= 0.2 && f <= 8 && m > maxMag) { maxMag = m; dom = f; }
+      }
+      return { freq, mag, dominant: dom, fftSize: N, windowType: winType };
+    }
+
+    function rms(arr) { return Math.sqrt(arr.reduce((s, v) => s + v * v, 0) / Math.max(1, arr.length)); }
+    function variance(arr) { const m = arr.reduce((s, v) => s + v, 0) / arr.length; return arr.reduce((s, v) => s + Math.pow(v - m, 2), 0) / arr.length; }
+
+    function classifyWindow(features) {
+      if (features.peak > features.impactThreshold && features.afterRms < features.stillThreshold) return 'fall';
+      if (features.rms < 0.45 && features.pp < 1.4) return 'still';
+      if (features.peak > 15 && features.dom < 1.1) return 'sitstand';
+      if (features.dom >= 2.35 || features.rms > 2.1) return 'run';
+      if (features.rms > 1.45 && features.dom >= 1.1 && features.dom < 2.25) return features.meanZ > 9.9 ? 'upstairs' : 'downstairs';
+      if (features.dom >= 0.9 && features.dom < 2.4) return 'walk';
+      return 'unknown';
+    }
+
+    function analyze(data) {
+      const fs = data.fs || Number(el('sampleRate').value);
+      const rawMag = magnitude(data);
+      const filtered = lowPass(rawMag, fs, Number(el('cutoff').value));
+      const dynamic = detrend(filtered);
+      const spectrum = computeSpectrum(dynamic, fs);
+      const impactThreshold = Number(el('impactThreshold').value);
+      const stillThreshold = Number(el('stillThreshold').value);
+      const peaks = [];
+      for (let i = 1; i < filtered.length - 1; i++) {
+        if (filtered[i] > impactThreshold && filtered[i] > filtered[i - 1] && filtered[i] > filtered[i + 1]) peaks.push({ i, t: data.t[i], v: filtered[i] });
+      }
+      const windowSize = Math.max(24, Math.round(fs * 2));
+      const step = Math.max(12, Math.round(fs));
+      const timeline = [];
+      for (let start = 0; start < filtered.length; start += step) {
+        const end = Math.min(filtered.length, start + windowSize);
+        const seg = dynamic.slice(start, end);
+        const rawSeg = filtered.slice(start, end);
+        const zSeg = data.az.slice(start, end);
+        const spec = computeSpectrum(seg, fs);
+        const peak = Math.max(...rawSeg);
+        const min = Math.min(...rawSeg);
+        const peakIndexLocal = rawSeg.indexOf(peak);
+        const after = rawSeg.slice(Math.min(rawSeg.length, peakIndexLocal + Math.round(0.4 * fs)));
+        const features = {
+          rms: rms(seg), variance: variance(seg), peak, pp: peak - min, dom: spec.dominant,
+          meanZ: zSeg.reduce((a, b) => a + b, 0) / Math.max(1, zSeg.length),
+          afterRms: after.length ? rms(detrend(after)) : rms(seg),
+          impactThreshold, stillThreshold
+        };
+        const state = classifyWindow(features);
+        timeline.push({ start, end, t0: data.t[start] || 0, t1: data.t[end - 1] || 0, state, features });
+      }
+      const fallEvents = peaks.filter(p => {
+        const afterStart = p.i + Math.round(0.45 * fs);
+        const afterEnd = Math.min(filtered.length, p.i + Math.round(1.8 * fs));
+        const after = dynamic.slice(afterStart, afterEnd);
+        return after.length > 8 && rms(after) < stillThreshold;
+      });
+      const fullFeatures = {
+        rms: rms(dynamic), variance: variance(dynamic), peak: Math.max(...filtered), min: Math.min(...filtered),
+        pp: Math.max(...filtered) - Math.min(...filtered), dom: spectrum.dominant,
+        energy: dynamic.reduce((s, v) => s + v * v, 0) / Math.max(1, dynamic.length)
+      };
+      return { fs, rawMag, filtered, dynamic, spectrum, peaks, fallEvents, timeline, features: fullFeatures };
+    }
+
+    function niceNumber(v) { return Number.isFinite(v) ? v.toFixed(2) : '0.00'; }
+
+    function chartBase(c, title) {
+      c.clearRect(0, 0, c.canvas.width, c.canvas.height);
+      c.fillStyle = '#ffffff'; c.fillRect(0, 0, c.canvas.width, c.canvas.height);
+      c.strokeStyle = 'rgba(17,24,39,0.09)'; c.lineWidth = 1;
+      for (let i = 0; i <= 6; i++) { const y = 36 + i * (c.canvas.height - 62) / 6; c.beginPath(); c.moveTo(42, y); c.lineTo(c.canvas.width - 18, y); c.stroke(); }
+      c.fillStyle = '#475467'; c.font = '15px Microsoft YaHei'; c.fillText(title, 18, 24);
+    }
+
+    function drawLine(c, arr, color, minVal, maxVal, x0 = 46, y0 = 36, w = c.canvas.width - 68, h = c.canvas.height - 64) {
+      c.strokeStyle = color; c.lineWidth = 2; c.beginPath();
+      arr.forEach((v, i) => {
+        const x = x0 + (i / Math.max(1, arr.length - 1)) * w;
+        const y = y0 + (1 - (v - minVal) / Math.max(0.0001, maxVal - minVal)) * h;
+        if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      });
+      c.stroke();
+    }
+
+    function downsample(arr, maxN = 1200) {
+      if (arr.length <= maxN) return arr.slice();
+      const step = arr.length / maxN; const out = [];
+      for (let i = 0; i < maxN; i++) out.push(arr[Math.floor(i * step)]);
+      return out;
+    }
+
+    function labelSegments(data) {
+      const labels = data.label && data.label.length === data.t.length ? data.label : [];
+      if (!labels.length || labels.every(v => !v || v === 'unknown')) return [];
+      const segs = [];
+      let start = 0;
+      for (let i = 1; i <= labels.length; i++) {
+        if (i === labels.length || labels[i] !== labels[start]) {
+          segs.push({ label: labels[start] || 'unknown', t0: data.t[start] || 0, t1: data.t[Math.max(start, i - 1)] || 0 });
+          start = i;
+        }
+      }
+      return segs;
+    }
+
+    function drawLabelBands(c, data, x0, y0, w, h, alpha = 0.10) {
+      const total = data.t.length ? data.t[data.t.length - 1] || 1 : 1;
+      labelSegments(data).forEach(seg => {
+        const meta = stateMeta[seg.label] || stateMeta.unknown;
+        const x = x0 + (seg.t0 / Math.max(0.001, total)) * w;
+        const bw = Math.max(2, ((seg.t1 - seg.t0) / Math.max(0.001, total)) * w);
+        c.save(); c.globalAlpha = alpha; c.fillStyle = meta.color; c.fillRect(x, y0, bw, h); c.restore();
+      });
+    }
+
+    function drawTimeTicks(c, total, x0, y0, w, h) {
+      c.fillStyle = '#667085'; c.font = '12px Microsoft YaHei';
+      const ticks = Math.min(8, Math.max(3, Math.round(total / 5)));
+      for (let i = 0; i <= ticks; i++) {
+        const x = x0 + (i / ticks) * w;
+        c.strokeStyle = 'rgba(17,24,39,0.08)'; c.beginPath(); c.moveTo(x, y0); c.lineTo(x, y0 + h); c.stroke();
+        c.fillText(`${(total * i / ticks).toFixed(0)}s`, x - 8, y0 + h + 16);
+      }
+    }
+
+    function drawAxis(data) {
+      const c = ctx.axis; chartBase(c, '原始三轴加速度 ax / ay / az');
+      const ax = downsample(data.ax), ay = downsample(data.ay), az = downsample(data.az);
+      const all = ax.concat(ay, az); const min = Math.min(...all), max = Math.max(...all);
+      drawLabelBands(c, data, 46, 36, c.canvas.width - 68, c.canvas.height - 64, 0.08);
+      drawLine(c, ax, '#1d4ed8', min, max); drawLine(c, ay, '#16845b', min, max); drawLine(c, az, '#d97706', min, max);
+      const labels = [['ax', '#1d4ed8'], ['ay', '#16845b'], ['az', '#d97706']];
+      labels.forEach((l, i) => { c.fillStyle = l[1]; c.fillRect(58 + i * 62, 42, 18, 4); c.fillText(l[0], 80 + i * 62, 48); });
+      drawTimeTicks(c, data.t[data.t.length - 1] || 1, 46, 36, c.canvas.width - 68, c.canvas.height - 64);
+      c.fillStyle = '#667085'; c.fillText(`范围 ${niceNumber(min)} ~ ${niceNumber(max)} m/s²`, 18, c.canvas.height - 16);
+    }
+
+    function drawScatter(data) {
+      const c = ctx.scatter; chartBase(c, 'ax-ay 轨迹投影：观察运动方向和幅值分布');
+      const maxPoints = 900;
+      const step = Math.max(1, Math.floor(data.ax.length / maxPoints));
+      const xs = [], ys = [];
+      for (let i = 0; i < data.ax.length; i += step) { xs.push(data.ax[i]); ys.push(data.ay[i]); }
+      const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+      const x0 = 50, y0 = 42, w = c.canvas.width - 82, h = c.canvas.height - 82;
+      c.strokeStyle = 'rgba(17,24,39,0.18)'; c.strokeRect(x0, y0, w, h);
+      c.strokeStyle = 'rgba(17,24,39,0.12)';
+      c.beginPath(); c.moveTo(x0, y0 + h / 2); c.lineTo(x0 + w, y0 + h / 2); c.moveTo(x0 + w / 2, y0); c.lineTo(x0 + w / 2, y0 + h); c.stroke();
+      xs.forEach((xv, i) => {
+        const x = x0 + (xv - minX) / Math.max(0.001, maxX - minX) * w;
+        const y = y0 + (1 - (ys[i] - minY) / Math.max(0.001, maxY - minY)) * h;
+        const hue = 205 - 155 * (i / Math.max(1, xs.length - 1));
+        c.fillStyle = `hsla(${hue}, 72%, 45%, 0.62)`;
+        c.beginPath(); c.arc(x, y, 2.2, 0, Math.PI * 2); c.fill();
+      });
+      c.fillStyle = '#667085'; c.fillText(`横轴 ax：${niceNumber(minX)} ~ ${niceNumber(maxX)}，纵轴 ay：${niceNumber(minY)} ~ ${niceNumber(maxY)}`, 18, c.canvas.height - 16);
+    }
+
+    function drawMag(data, result) {
+      const c = ctx.mag; chartBase(c, '合加速度 A 与低通滤波结果，红点为跌倒冲击峰值');
+      const raw = downsample(result.rawMag), filt = downsample(result.filtered);
+      const all = raw.concat(filt); const min = Math.min(...all), max = Math.max(...all);
+      drawLabelBands(c, data, 46, 36, c.canvas.width - 68, c.canvas.height - 64, 0.08);
+      drawLine(c, raw, 'rgba(29,78,216,0.35)', min, max); drawLine(c, filt, '#dc2626', min, max);
+      const th = Number(el('impactThreshold').value);
+      if (th >= min && th <= max) {
+        const y = 36 + (1 - (th - min) / Math.max(0.0001, max - min)) * (c.canvas.height - 64);
+        c.strokeStyle = '#991b1b'; c.setLineDash([8, 6]); c.beginPath(); c.moveTo(46, y); c.lineTo(c.canvas.width - 22, y); c.stroke(); c.setLineDash([]);
+        c.fillStyle = '#991b1b'; c.fillText(`冲击阈值 ${th}m/s²`, 58, y - 6);
+      }
+      result.fallEvents.forEach(p => {
+        const x = 46 + (p.i / Math.max(1, result.filtered.length - 1)) * (c.canvas.width - 68);
+        const y = 36 + (1 - (p.v - min) / Math.max(0.0001, max - min)) * (c.canvas.height - 64);
+        c.fillStyle = '#dc2626'; c.beginPath(); c.arc(x, y, 6, 0, Math.PI * 2); c.fill();
+        c.fillText(`跌倒 ${p.t.toFixed(1)}s`, Math.min(c.canvas.width - 100, x + 8), Math.max(44, y - 8));
+      });
+      drawTimeTicks(c, data.t[data.t.length - 1] || 1, 46, 36, c.canvas.width - 68, c.canvas.height - 64);
+      c.fillStyle = '#667085'; c.fillText('蓝色：原始合加速度；红色：滤波后合加速度', 18, c.canvas.height - 16);
+    }
+
+    function drawDynamic(result) {
+      const c = ctx.dynamic; chartBase(c, '去趋势动态分量：用于 RMS、能量和静止判定');
+      const arr = downsample(result.dynamic);
+      const limit = Math.max(3, Math.max(...arr.map(v => Math.abs(v))) * 1.08);
+      drawLine(c, arr, '#0891b2', -limit, limit);
+      const y0 = 36, h = c.canvas.height - 64, x0 = 46, w = c.canvas.width - 68;
+      const drawThreshold = (value, color, label) => {
+        const y = y0 + (1 - (value + limit) / (2 * limit)) * h;
+        c.strokeStyle = color; c.setLineDash([7, 6]); c.beginPath(); c.moveTo(x0, y); c.lineTo(x0 + w, y); c.stroke(); c.setLineDash([]);
+        c.fillStyle = color; c.fillText(label, x0 + 8, y - 6);
+      };
+      drawThreshold(Number(el('stillThreshold').value), '#16845b', '+静止 RMS 阈值');
+      drawThreshold(-Number(el('stillThreshold').value), '#16845b', '-静止 RMS 阈值');
+      c.fillStyle = '#667085'; c.fillText('去除平均重力趋势后，更容易观察运动扰动强弱。', 18, c.canvas.height - 16);
+    }
+
+    function drawFilterResponse(result) {
+      const c = ctx.filter; chartBase(c, '移动平均低通滤波器幅频响应示意');
+      const fs = result.fs, cutoff = Number(el('cutoff').value);
+      const M = Math.max(3, Math.round(fs / Math.max(1, cutoff)));
+      const points = 180, maxF = Math.min(25, fs / 2);
+      const response = [];
+      for (let i = 0; i < points; i++) {
+        const f = (i / (points - 1)) * maxF;
+        const omega = 2 * Math.PI * f / fs;
+        const den = Math.sin(omega / 2);
+        const mag = Math.abs(den) < 1e-6 ? 1 : Math.abs(Math.sin(M * omega / 2) / (M * den));
+        response.push(mag);
+      }
+      drawLine(c, response, '#1d4ed8', 0, 1.05);
+      const x = 46 + (cutoff / maxF) * (c.canvas.width - 68);
+      c.strokeStyle = '#dc2626'; c.beginPath(); c.moveTo(x, 36); c.lineTo(x, c.canvas.height - 28); c.stroke();
+      c.fillStyle = '#dc2626'; c.fillText(`截止频率约 ${cutoff}Hz`, Math.min(c.canvas.width - 150, x + 8), 58);
+      c.fillStyle = '#667085'; c.fillText(`采样率 ${fs}Hz，平均窗口 M=${M}，高频成分被抑制。`, 18, c.canvas.height - 16);
+    }
+
+    function drawFFT(result) {
+      const c = ctx.fft; chartBase(c, `FFT 频谱：${result.spectrum.fftSize} 点，${windowName(result.spectrum.windowType)}`);
+      const freq = result.spectrum.freq, mag = result.spectrum.mag;
+      const maxF = 8; const maxM = Math.max(...mag.filter((_, i) => freq[i] <= maxF), 1);
+      const x0 = 46, y0 = 36, w = c.canvas.width - 68, h = c.canvas.height - 64;
+      [['行走频带 0.9-2.4Hz', 0.9, 2.4, 'rgba(22,132,91,0.10)'], ['跑步频带 2.4-4Hz', 2.4, 4.0, 'rgba(217,119,6,0.10)'], ['高频冲击 4-8Hz', 4.0, 8.0, 'rgba(220,38,38,0.08)']].forEach(([label, f0, f1, color]) => {
+        const x = x0 + (f0 / maxF) * w;
+        const bw = ((f1 - f0) / maxF) * w;
+        c.fillStyle = color; c.fillRect(x, y0, bw, h);
+        c.fillStyle = '#667085'; c.font = '12px Microsoft YaHei'; c.fillText(label, x + 6, y0 + 16);
+      });
+      c.strokeStyle = '#1d4ed8'; c.lineWidth = 2; c.beginPath();
+      freq.forEach((f, i) => {
+        if (f > maxF) return;
+        const x = x0 + (f / maxF) * w;
+        const y = y0 + (1 - mag[i] / maxM) * h;
+        if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+      });
+      c.stroke();
+      const peakCandidates = freq.map((f, i) => ({ f, m: mag[i] })).filter(p => p.f >= 0.2 && p.f <= maxF).sort((a, b) => b.m - a.m).slice(0, 3);
+      peakCandidates.forEach((p, i) => {
+        const x = x0 + (p.f / maxF) * w;
+        const y = y0 + (1 - p.m / maxM) * h;
+        c.fillStyle = ['#dc2626', '#d97706', '#0891b2'][i]; c.beginPath(); c.arc(x, y, 4, 0, Math.PI * 2); c.fill();
+        c.fillText(`${p.f.toFixed(2)}Hz`, Math.min(c.canvas.width - 72, x + 7), Math.max(48, y - 8));
+      });
+      const dx = x0 + (result.spectrum.dominant / maxF) * w;
+      c.strokeStyle = '#dc2626'; c.beginPath(); c.moveTo(dx, y0); c.lineTo(dx, c.canvas.height - 28); c.stroke();
+      c.fillStyle = '#dc2626'; c.fillText(`主频 ${result.spectrum.dominant.toFixed(2)} Hz`, Math.min(c.canvas.width - 150, dx + 8), 58);
+      c.fillStyle = '#667085'; c.fillText(`0 Hz   频率分辨率 ${(result.fs / result.spectrum.fftSize).toFixed(3)} Hz`, 46, c.canvas.height - 12); c.fillText('8 Hz', c.canvas.width - 58, c.canvas.height - 12);
+    }
+
+    function drawWindowShape(result) {
+      const c = ctx.window; chartBase(c, `${windowName(result.spectrum.windowType)}：观察加窗对频谱泄漏的影响`);
+      const N = Math.min(result.spectrum.fftSize, 512);
+      const weights = Array.from({ length: N }, (_, i) => windowWeight(i, N, result.spectrum.windowType));
+      drawLine(c, weights, '#7c3aed', 0, 1.05);
+      const meanGain = weights.reduce((s, v) => s + v, 0) / weights.length;
+      c.fillStyle = '#667085'; c.fillText(`窗长显示 ${N} 点，平均增益 ${meanGain.toFixed(3)}。矩形窗主瓣窄但泄漏更明显。`, 18, c.canvas.height - 16);
+    }
+
+    function drawSpectrogram(result) {
+      const c = ctx.spectrogram; chartBase(c, 'STFT 时频热力图：观察运动状态随时间变化的频率能量');
+      const fs = result.fs, signal = result.dynamic;
+      const win = Math.max(64, Math.round(fs * 2));
+      const step = Math.max(16, Math.round(fs * 0.5));
+      const frames = [];
+      for (let start = 0; start + 8 < signal.length; start += step) frames.push(computeSpectrum(signal.slice(start, Math.min(signal.length, start + win)), fs, 256, getWindowType()));
+      const maxF = 8, bins = 64;
+      let maxMag = 1;
+      const grid = frames.map(frame => {
+        const row = new Array(bins).fill(0);
+        frame.freq.forEach((f, i) => { if (f <= maxF) row[Math.min(bins - 1, Math.floor(f / maxF * bins))] = Math.max(row[Math.min(bins - 1, Math.floor(f / maxF * bins))], frame.mag[i]); });
+        maxMag = Math.max(maxMag, ...row);
+        return row;
+      });
+      const x0 = 46, y0 = 36, w = c.canvas.width - 68, h = c.canvas.height - 72;
+      grid.forEach((row, ix) => {
+        row.forEach((m, iy) => {
+          const power = Math.pow(m / maxMag, 0.42);
+          const hue = 220 - 190 * power;
+          c.fillStyle = `hsl(${hue}, 78%, ${30 + 32 * power}%)`;
+          c.fillRect(x0 + ix * w / Math.max(1, grid.length), y0 + (bins - 1 - iy) * h / bins, Math.ceil(w / Math.max(1, grid.length)) + 1, Math.ceil(h / bins) + 1);
+        });
+      });
+      c.strokeStyle = 'rgba(17,24,39,0.18)'; c.strokeRect(x0, y0, w, h);
+      c.fillStyle = '#667085'; c.fillText('横轴：时间，纵轴：0-8Hz，颜色越暖表示该频率能量越强。', 18, c.canvas.height - 16);
+    }
+
+    function drawFeatures(result) {
+      const c = ctx.feature; chartBase(c, '时域与频域特征参数');
+      const items = [
+        ['RMS', result.features.rms], ['方差', result.features.variance], ['峰值', result.features.peak],
+        ['峰峰值', result.features.pp], ['主频', result.features.dom], ['能量', result.features.energy]
+      ];
+      const max = Math.max(...items.map(i => i[1]), 1);
+      const w = (c.canvas.width - 82) / items.length;
+      items.forEach((item, i) => {
+        const h = (item[1] / max) * (c.canvas.height - 96);
+        const x = 48 + i * w + 9, y = c.canvas.height - 42 - h;
+        c.fillStyle = ['#1d4ed8','#16845b','#dc2626','#d97706','#0891b2','#7c3aed'][i];
+        c.fillRect(x, y, w - 18, h);
+        c.fillStyle = '#475467'; c.textAlign = 'center'; c.fillText(item[0], x + (w - 18) / 2, c.canvas.height - 18);
+        c.fillText(niceNumber(item[1]), x + (w - 18) / 2, y - 8); c.textAlign = 'left';
+      });
+    }
+
+    function drawFeatureTrend(result) {
+      const c = ctx.featureTrend; chartBase(c, '短时特征趋势：RMS 与峰值随窗口变化');
+      const rmsSeries = result.timeline.map(s => s.features.rms);
+      const peakSeries = result.timeline.map(s => s.features.peak);
+      const max = Math.max(...rmsSeries, ...peakSeries, 1);
+      drawLine(c, peakSeries, '#dc2626', 0, max);
+      drawLine(c, rmsSeries, '#1d4ed8', 0, max);
+      const drawH = (value, color, label) => {
+        if (value > max) return;
+        const y = 36 + (1 - value / max) * (c.canvas.height - 64);
+        c.strokeStyle = color; c.setLineDash([7, 5]); c.beginPath(); c.moveTo(46, y); c.lineTo(c.canvas.width - 22, y); c.stroke(); c.setLineDash([]);
+        c.fillStyle = color; c.fillText(label, c.canvas.width - 160, y - 6);
+      };
+      drawH(Number(el('impactThreshold').value), '#991b1b', '冲击阈值');
+      drawH(Number(el('stillThreshold').value), '#16845b', '静止阈值');
+      c.fillStyle = '#dc2626'; c.fillRect(58, 42, 18, 4); c.fillText('峰值', 82, 48);
+      c.fillStyle = '#1d4ed8'; c.fillRect(132, 42, 18, 4); c.fillText('RMS', 156, 48);
+      c.fillStyle = '#667085'; c.fillText('跌倒通常表现为峰值突然升高，随后 RMS 快速降低。', 18, c.canvas.height - 16);
+    }
+
+    function drawTimeline(result) {
+      const c = ctx.timeline; chartBase(c, '短时窗口运动状态识别时间线');
+      const total = result.timeline.length ? result.timeline[result.timeline.length - 1].t1 : 1;
+      const y = 58, h = 46;
+      result.timeline.forEach(seg => {
+        const meta = stateMeta[seg.state] || stateMeta.unknown;
+        const x = 46 + (seg.t0 / Math.max(0.001, total)) * (c.canvas.width - 68);
+        const w = Math.max(2, ((seg.t1 - seg.t0) / Math.max(0.001, total)) * (c.canvas.width - 68));
+        c.fillStyle = meta.color; c.fillRect(x, y, w, h);
+      });
+      drawTimeTicks(c, total, 46, y, c.canvas.width - 68, h);
+      let x = 50, yLegend = 132;
+      Object.entries(stateMeta).filter(([k]) => k !== 'unknown').forEach(([k, meta]) => {
+        c.fillStyle = meta.color; c.fillRect(x, yLegend, 18, 10); c.fillStyle = '#475467'; c.fillText(meta.name, x + 24, yLegend + 10); x += 92;
+      });
+      c.fillStyle = '#667085'; c.fillText(`总时长 ${total.toFixed(1)}s，窗口步长约 1s`, 18, c.canvas.height - 16);
+    }
+
+    function drawLabelComparison(data, result) {
+      const c = ctx.compare; chartBase(c, '真实标签与识别结果对比：上方为 CSV/模拟标签，下方为算法识别结果');
+      const total = data.t.length ? data.t[data.t.length - 1] || 1 : 1;
+      const x0 = 46, w = c.canvas.width - 68;
+      const trueY = 58, predY = 122, h = 34;
+      const trueSegs = labelSegments(data);
+      c.fillStyle = '#475467'; c.fillText('真实标签', 18, trueY + 23); c.fillText('识别结果', 18, predY + 23);
+      if (trueSegs.length) {
+        trueSegs.forEach(seg => {
+          const meta = stateMeta[seg.label] || stateMeta.unknown;
+          const x = x0 + (seg.t0 / Math.max(0.001, total)) * w;
+          const bw = Math.max(2, ((seg.t1 - seg.t0) / Math.max(0.001, total)) * w);
+          c.fillStyle = meta.color; c.fillRect(x, trueY, bw, h);
+        });
+      } else {
+        c.fillStyle = 'rgba(102,112,133,0.18)'; c.fillRect(x0, trueY, w, h);
+        c.fillStyle = '#667085'; c.fillText('上传数据未提供 label 列，无法显示真实标签。', x0 + 10, trueY + 23);
+      }
+      result.timeline.forEach(seg => {
+        const meta = stateMeta[seg.state] || stateMeta.unknown;
+        const x = x0 + (seg.t0 / Math.max(0.001, total)) * w;
+        const bw = Math.max(2, ((seg.t1 - seg.t0) / Math.max(0.001, total)) * w);
+        c.fillStyle = meta.color; c.fillRect(x, predY, bw, h);
+      });
+      c.strokeStyle = 'rgba(17,24,39,0.18)'; c.strokeRect(x0, trueY, w, h); c.strokeRect(x0, predY, w, h);
+      drawTimeTicks(c, total, x0, predY, w, h);
+      c.fillStyle = '#667085'; c.fillText('两条色带越一致，说明识别结果越接近真实状态；差异区域可用于分析误判原因。', 18, c.canvas.height - 16);
+    }
+
+    function drawStateDistribution(result) {
+      const c = ctx.stateDist; chartBase(c, '状态占比统计：识别结果汇总');
+      const counts = result.timeline.reduce((acc, seg) => { acc[seg.state] = (acc[seg.state] || 0) + 1; return acc; }, {});
+      const items = Object.entries(counts).filter(([, count]) => count > 0);
+      const total = items.reduce((s, [, count]) => s + count, 0) || 1;
+      let start = -Math.PI / 2;
+      const cx = c.canvas.width * 0.28, cy = c.canvas.height * 0.52, r = Math.min(128, c.canvas.height * 0.28);
+      items.forEach(([state, count]) => {
+        const angle = count / total * Math.PI * 2;
+        c.beginPath(); c.moveTo(cx, cy); c.arc(cx, cy, r, start, start + angle); c.closePath();
+        c.fillStyle = stateMeta[state]?.color || stateMeta.unknown.color; c.fill();
+        start += angle;
+      });
+      let y = 78;
+      items.forEach(([state, count]) => {
+        const meta = stateMeta[state] || stateMeta.unknown;
+        c.fillStyle = meta.color; c.fillRect(c.canvas.width * 0.52, y - 10, 22, 12);
+        c.fillStyle = '#475467'; c.fillText(`${meta.name}：${count} 窗口，占 ${(count / total * 100).toFixed(1)}%`, c.canvas.width * 0.52 + 34, y);
+        y += 28;
+      });
+      c.fillStyle = '#667085'; c.fillText('状态占比可用于展示一段运动数据中的主要活动类型。', 18, c.canvas.height - 16);
+    }
+
+    function updateDashboard(result) {
+      const counts = result.timeline.reduce((acc, s) => { acc[s.state] = (acc[s.state] || 0) + 1; return acc; }, {});
+      const mainState = result.fallEvents.length ? 'fall' : Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'unknown';
+      const meta = stateMeta[mainState] || stateMeta.unknown;
+      el('stateText').textContent = meta.name;
+      el('fallText').textContent = result.fallEvents.length ? `触发 ${result.fallEvents.length} 次` : '未触发';
+      el('freqText').textContent = `${result.spectrum.dominant.toFixed(2)} Hz`;
+      el('peakText').textContent = `${result.features.peak.toFixed(1)}`;
+      const stateCard = el('stateCard');
+      stateCard.className = 'status-card ' + (mainState === 'fall' ? 'state-fall' : mainState === 'unknown' ? 'state-warn' : 'state-safe');
+    }
+
+    function updateLog(result) {
+      const newEvents = result.fallEvents.map(p => ({ time: p.t.toFixed(2) + 's', type: '跌倒告警', cls: 'fall', msg: `检测到冲击峰值 ${p.v.toFixed(2)} m/s²，后续进入低活动状态。` }));
+      const stateEvents = result.timeline.filter((s, i, arr) => i === 0 || s.state !== arr[i - 1].state).map(s => ({ time: s.t0.toFixed(1) + 's', type: stateMeta[s.state]?.name || '未知', cls: s.state, msg: `窗口 RMS=${s.features.rms.toFixed(2)}，主频=${s.features.dom.toFixed(2)}Hz，FFT=${result.spectrum.fftSize}点，窗函数=${windowName(result.spectrum.windowType)}。` }));
+      logItems = [...newEvents, ...stateEvents].slice(0, 60);
+      renderLog();
+    }
+
+    function renderLog() {
+      const log = el('eventLog');
+      if (!logItems.length) { log.innerHTML = '<div class="note">暂无事件记录，生成或导入数据后会显示状态变化与告警信息。</div>'; return; }
+      log.innerHTML = logItems.map(item => `<div class="event"><strong>${item.time}</strong><span>${item.msg}</span><span class="pill ${item.cls}">${item.type}</span></div>`).join('');
+    }
+
+    function runAnalysis(data) {
+      currentData = data;
+      const result = analyze(data);
+      currentResult = result;
+      drawAxis(data);
+      drawScatter(data);
+      drawMag(data, result);
+      drawDynamic(result);
+      drawFilterResponse(result);
+      drawFFT(result);
+      drawWindowShape(result);
+      drawSpectrogram(result);
+      drawFeatures(result);
+      drawFeatureTrend(result);
+      drawTimeline(result);
+      drawLabelComparison(data, result);
+      drawStateDistribution(result);
+      updateDashboard(result);
+      updateLog(result);
+    }
+
+    function downloadCsv() {
+      if (!currentData) return;
+      const rows = ['time,ax,ay,az,label'];
+      for (let i = 0; i < currentData.ax.length; i++) rows.push([currentData.t[i].toFixed(4), currentData.ax[i].toFixed(5), currentData.ay[i].toFixed(5), currentData.az[i].toFixed(5), currentData.label[i] || 'unknown'].join(','));
+      const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8' });
+      const link = document.createElement('a'); link.download = 'fall-detection-accelerometer.csv'; link.href = URL.createObjectURL(blob); link.click(); URL.revokeObjectURL(link.href);
+    }
+
+    async function startMotionCapture() {
+      if (!('DeviceMotionEvent' in window)) {
+        alert('当前浏览器不支持 DeviceMotionEvent。可以使用手机浏览器打开本页面，或上传手机传感器 APP 导出的 CSV 数据。');
+        return;
+      }
+      try {
+        if (typeof DeviceMotionEvent.requestPermission === 'function') {
+          const permission = await DeviceMotionEvent.requestPermission();
+          if (permission !== 'granted') throw new Error('未获得运动传感器权限');
+        }
+      } catch (err) {
+        alert(err.message || '无法获取运动传感器权限');
+        return;
+      }
+      motionBuffer = { t: [], ax: [], ay: [], az: [], label: [], fs: Number(el('sampleRate').value) };
+      motionStart = performance.now();
+      motionHandler = event => {
+        const a = event.accelerationIncludingGravity || event.acceleration;
+        if (!a) return;
+        const t = (performance.now() - motionStart) / 1000;
+        motionBuffer.t.push(t);
+        motionBuffer.ax.push(Number(a.x || 0));
+        motionBuffer.ay.push(Number(a.y || 0));
+        motionBuffer.az.push(Number(a.z || 0));
+        motionBuffer.label.push('realtime');
+        el('stateText').textContent = `采集中 ${t.toFixed(1)}s`;
+      };
+      window.addEventListener('devicemotion', motionHandler);
+      clearTimeout(motionTimer);
+      motionTimer = setTimeout(stopMotionCapture, 10000);
+    }
+
+    function stopMotionCapture() {
+      if (motionHandler) window.removeEventListener('devicemotion', motionHandler);
+      clearTimeout(motionTimer);
+      motionHandler = null;
+      if (!motionBuffer || motionBuffer.ax.length < 32) {
+        alert('采集数据不足。若使用电脑浏览器，请改用模拟数据或 CSV 导入；若使用手机，请确认已授予运动传感器权限。');
+        return;
+      }
+      const duration = motionBuffer.t[motionBuffer.t.length - 1] - motionBuffer.t[0];
+      if (duration > 0) motionBuffer.fs = Math.round((motionBuffer.t.length - 1) / duration);
+      runAnalysis(motionBuffer);
+    }
+
+    function emptyCharts() {
+      Object.values(ctx).forEach(c => chartBase(c, '等待生成或导入数据'));
+      renderLog();
+    }
+
+    [el('sampleRate'), el('cutoff'), el('impactThreshold'), el('stillThreshold')].forEach(input => input.addEventListener('input', () => { syncLabels(); if (currentData) runAnalysis(currentData); }));
+    [el('fftSize'), el('windowType')].forEach(input => input.addEventListener('change', () => { syncLabels(); if (currentData) runAnalysis(currentData); }));
+    document.querySelectorAll('.stage-tab').forEach(btn => btn.addEventListener('click', () => setStage(btn.dataset.stage)));
+    el('scenario').addEventListener('change', () => runAnalysis(generateData()));
+    el('generateBtn').addEventListener('click', () => runAnalysis(generateData()));
+    el('motionBtn').addEventListener('click', startMotionCapture);
+    el('stopMotionBtn').addEventListener('click', stopMotionCapture);
+    el('downloadCsvBtn').addEventListener('click', downloadCsv);
+    el('parseTextBtn').addEventListener('click', () => {
+      try { runAnalysis(parseCsv(el('csvText').value)); }
+      catch (err) { alert(err.message); }
+    });
+    el('csvFile').addEventListener('change', event => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => { try { runAnalysis(parseCsv(String(reader.result))); } catch (err) { alert(err.message); } };
+      reader.readAsText(file, 'utf-8');
+    });
+    el('clearBtn').addEventListener('click', () => { logItems = []; renderLog(); });
+
+    syncLabels(); setStage(currentStage); emptyCharts(); runAnalysis(generateData());
+  </script>
+</body>
+</html>
